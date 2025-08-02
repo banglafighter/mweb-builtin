@@ -9,7 +9,7 @@ env = os.environ.get('source')
 
 
 def get_dependencies():
-    dependency = []
+    dependency = ["python-barcode==0.15.1"]
 
     if env and env == "code":
         return dependency
