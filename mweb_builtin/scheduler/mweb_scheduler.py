@@ -1,12 +1,12 @@
 import threading
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.redis import RedisJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from redis import Redis
 from mw_common import Console
+from mweb import MWebBase
 from ..common.mweb_builtin_config import MWebBuiltinConfig
 
 
@@ -35,17 +35,13 @@ class MWebScheduler:
 
     def _create_scheduler(self):
         job_store = self._create_job_store()
-        executors = {
-            "default": ThreadPoolExecutor(self.config.SCHEDULER_THREAD_POOL_SIZE)
-        }
         job_defaults = {
             "coalesce": self.config.SCHEDULER_JOB_COALESCE,
             "max_instances": self.config.SCHEDULER_JOB_MAX_INSTANCES,
         }
 
-        scheduler = BackgroundScheduler(
+        scheduler = AsyncIOScheduler(
             jobstores=job_store,
-            executors=executors,
             job_defaults=job_defaults,
             timezone=self.config.SCHEDULER_TIMEZONE,
         )
@@ -69,8 +65,6 @@ class MWebScheduler:
     def _listener(self, event):
         if event.exception:
             Console.log(f"MWeb Scheduler Job {event.job_id} failed", system_log=True)
-        else:
-            Console.log(f"MWeb Scheduler Job {event.job_id} executed successfully", system_log=True)
 
     def _acquire_lock(self):
         if not self._redis_client:
@@ -88,7 +82,10 @@ class MWebScheduler:
         if self._redis_client:
             self._redis_client.delete(self.config.SCHEDULER_LOCK_KEY)
 
-    def start(self, paused=False):
+    def initialize(self, mweb_app: MWebBase):
+        mweb_app.before_serving(self.start)
+
+    async def start(self, paused=False):
         if not self._started:
             if not self._acquire_lock():
                 Console.log(f"MWeb Scheduler Skipping start — another worker owns the lock", system_log=True)
