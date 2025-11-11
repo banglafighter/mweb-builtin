@@ -116,7 +116,7 @@ class MWebScheduler:
         Console.log(f"MWeb Scheduler Added interval job: {job_id}")
         return job
 
-    def add_cron_job(self, func, job_id: str, hour=None, minute=None, second=None, args=None, kwargs=None):
+    def add_cron_job(self, func, job_id: str, hour=None, minute=None, second=None, day=None, args=None, kwargs=None):
         job = self._scheduler.add_job(
             func=func,
             trigger="cron",
@@ -125,6 +125,7 @@ class MWebScheduler:
             hour=hour,
             minute=minute,
             second=second,
+            day=day,
             args=args or [],
             kwargs=kwargs or {},
         )
