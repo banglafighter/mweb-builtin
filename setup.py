@@ -13,6 +13,7 @@ def get_dependencies():
         "python-barcode==0.15.1",
         "APScheduler==3.11.0",
         "redis==6.4.0",
+        "aiohttp==3.13.2",
     ]
 
     if env and env == "code":
