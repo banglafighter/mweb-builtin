@@ -127,7 +127,6 @@ class MWebHttp:
 
     async def process_response(self, response) -> MWebHttpResponse:
         processed_response = await MWebHttpResponse.get_response(response=response)
-        await self.close()
         return processed_response
 
     def add_header(self, key: str, value) -> "MWebHttp":
@@ -143,4 +142,6 @@ class MWebHttp:
         return self
 
     async def close(self):
-        await self.session.close()
+        if self.session and not self.session.closed:
+            await self.session.close()
+

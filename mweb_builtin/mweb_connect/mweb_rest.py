@@ -15,6 +15,7 @@ class MWebRest:
     def __init__(self, credentials: MWebRestCredentials, enable_log: bool = False):
         self._mweb_http = MWebHttp(base_url=credentials.baseUrl)
         self._enable_log = enable_log
+        self._credentials = credentials
 
     def log(self, content):
         if self._enable_log:
@@ -25,8 +26,6 @@ class MWebRest:
             json_dict = request_obj.to_dict()
         elif json_dict:
             return {"data": json_dict}
-        else:
-            raise MwException("JSON data is empty")
         return json_dict
 
     def _get_data(self, response: MWebHttpResponse, response_obj: SDLize, exception=True, is_data_response=True):
@@ -142,3 +141,5 @@ class MWebRest:
         json_dict = self._prepare_json_request_data(request_obj=request_obj, json_dict=json_dict)
         return await self.process_rest_request(request_data=MWebRestRequestData(url=url, jsonDict=json_dict, data=data, file=file, requestType=MWebHttpRequestType.PATCH, exception=exception, isOpenAuth=is_open_auth, isDataResponse=is_data_response, sslVerify=ssl_verify), response_obj=response_obj)
 
+    async def close(self):
+        await self._mweb_http.close()
