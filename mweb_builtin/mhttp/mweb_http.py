@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 import aiohttp
 from aiohttp import ClientSession
@@ -49,7 +50,30 @@ class MWebHttp:
     def _get_url(self, url):
         if not self.baseUrl or self.baseUrl == "":
             raise MwException("HTTP Base url is empty")
-        return self.baseUrl + url
+        base_url = self.baseUrl.rstrip("/")
+        return f"{base_url}/{url}"
+
+    def _build_form(self, data: dict | None, file: dict | None):
+        if not data and not file:
+            return None
+
+        form = aiohttp.FormData()
+        if data:
+            for key, value in data.items():
+                form.add_field(key, str(value))
+
+        if file:
+            for key, file_obj in file.items():
+                if isinstance(file_obj, str) and os.path.exists(file_obj):
+                    form.add_field(
+                        key,
+                        open(file_obj, "rb"),
+                        filename=os.path.basename(file_obj),
+                    )
+                else:
+                    form.add_field(key, file_obj)
+
+        return form
 
     def set_base(self, url) -> "MWebHttp":
         self.baseUrl = url
@@ -58,48 +82,53 @@ class MWebHttp:
     async def get(self, url: str, params: dict = None, verify: bool = True) -> MWebHttpResponse:
         url = self._get_url(url)
         async with self.session.get(url, headers=self.headers, params=params, ssl=verify) as response:
-            return await MWebHttpResponse.get_response(response=response)
+            return await self.process_response(response=response)
 
     async def post(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
         url = self._get_url(url)
+        form = self._build_form(data=data, file=file)
         async with self.session.post(
                 url,
                 headers=self.headers,
                 json=json_dict,
-                data=data,
-                files=file,
+                data=form,
                 ssl=verify
         ) as response:
-            return await MWebHttpResponse.get_response(response=response)
+            return await self.process_response(response=response)
 
     async def put(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
         url = self._get_url(url)
+        form = self._build_form(data=data, file=file)
         async with self.session.put(
                 url,
                 headers=self.headers,
                 json=json_dict,
-                data=data,
-                files=file,
+                data=form,
                 ssl=verify
         ) as response:
-            return await MWebHttpResponse.get_response(response=response)
+            return await self.process_response(response=response)
 
     async def patch(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
         url = self._get_url(url)
+        form = self._build_form(data=data, file=file)
         async with self.session.patch(
                 url,
                 headers=self.headers,
                 json=json_dict,
-                data=data,
-                files=file,
+                data=form,
                 ssl=verify
         ) as response:
-            return await MWebHttpResponse.get_response(response=response)
+            return await self.process_response(response=response)
 
     async def delete(self, url: str, params: dict = None, verify: bool = True) -> MWebHttpResponse:
         url = self._get_url(url)
         async with self.session.delete(url, headers=self.headers, params=params, ssl=verify) as response:
-            return await MWebHttpResponse.get_response(response=response)
+            return await self.process_response(response=response)
+
+    async def process_response(self, response) -> MWebHttpResponse:
+        processed_response = await MWebHttpResponse.get_response(response=response)
+        await self.close()
+        return processed_response
 
     def add_header(self, key: str, value) -> "MWebHttp":
         self.headers[key] = value
