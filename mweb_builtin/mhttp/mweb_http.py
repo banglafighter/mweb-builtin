@@ -79,50 +79,59 @@ class MWebHttp:
         self.baseUrl = url
         return self
 
-    async def get(self, url: str, params: dict = None, verify: bool = True) -> MWebHttpResponse:
+    def _merge_and_get_header(self, headers: dict = None):
+        if not headers:
+            headers = {}
+
+        if self.headers:
+            headers.update(self.headers)
+
+        return headers
+
+    async def get(self, url: str, params: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
         url = self._get_url(url)
-        async with self.session.get(url, headers=self.headers, params=params, ssl=verify) as response:
+        async with self.session.get(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify) as response:
             return await self.process_response(response=response)
 
-    async def post(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
+    async def post(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
         async with self.session.post(
                 url,
-                headers=self.headers,
+                headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
                 ssl=verify
         ) as response:
             return await self.process_response(response=response)
 
-    async def put(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
+    async def put(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
         async with self.session.put(
                 url,
-                headers=self.headers,
+                headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
                 ssl=verify
         ) as response:
             return await self.process_response(response=response)
 
-    async def patch(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True) -> MWebHttpResponse:
+    async def patch(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
         async with self.session.patch(
                 url,
-                headers=self.headers,
+                headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
                 ssl=verify
         ) as response:
             return await self.process_response(response=response)
 
-    async def delete(self, url: str, params: dict = None, verify: bool = True) -> MWebHttpResponse:
+    async def delete(self, url: str, params: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
         url = self._get_url(url)
-        async with self.session.delete(url, headers=self.headers, params=params, ssl=verify) as response:
+        async with self.session.delete(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify) as response:
             return await self.process_response(response=response)
 
     async def process_response(self, response) -> MWebHttpResponse:
