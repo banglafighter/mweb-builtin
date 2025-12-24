@@ -1,9 +1,17 @@
 import os
 from dataclasses import dataclass
 import aiohttp
-from aiohttp import ClientSession
+from aiohttp import ClientSession, BasicAuth
 from mw_common import SDLize, MwException
 from .mweb_http_const import MWebHttpConst
+
+
+@dataclass(kw_only=True)
+class MWebHttpParams(SDLize):
+    basicAuth: BasicAuth = None
+
+    def set_basic_auth(self, login: str, password: str = "", encoding: str = "latin1"):
+        self.basicAuth = aiohttp.BasicAuth(login=login, password=password, encoding=encoding)
 
 
 @dataclass(kw_only=True)
@@ -88,50 +96,63 @@ class MWebHttp:
 
         return headers
 
-    async def get(self, url: str, params: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
+    async def get(self, url: str, params: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
-        async with self.session.get(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify) as response:
+        if not other_params:
+            other_params = MWebHttpParams()
+        async with self.session.get(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify, auth=other_params.basicAuth) as response:
             return await self.process_response(response=response)
 
-    async def post(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
+    async def post(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
+        if not other_params:
+            other_params = MWebHttpParams()
         async with self.session.post(
                 url,
                 headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
-                ssl=verify
+                ssl=verify,
+                auth=other_params.basicAuth
         ) as response:
             return await self.process_response(response=response)
 
-    async def put(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
+    async def put(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
+        if not other_params:
+            other_params = MWebHttpParams()
         async with self.session.put(
                 url,
                 headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
-                ssl=verify
+                ssl=verify,
+                auth=other_params.basicAuth
         ) as response:
             return await self.process_response(response=response)
 
-    async def patch(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
+    async def patch(self, url: str, json_dict: dict = None, data: dict = None, file: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
         form = self._build_form(data=data, file=file)
+        if not other_params:
+            other_params = MWebHttpParams()
         async with self.session.patch(
                 url,
                 headers=self._merge_and_get_header(headers=headers),
                 json=json_dict,
                 data=form,
-                ssl=verify
+                ssl=verify,
+                auth=other_params.basicAuth
         ) as response:
             return await self.process_response(response=response)
 
-    async def delete(self, url: str, params: dict = None, verify: bool = True, headers: dict = None) -> MWebHttpResponse:
+    async def delete(self, url: str, params: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
-        async with self.session.delete(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify) as response:
+        if not other_params:
+            other_params = MWebHttpParams()
+        async with self.session.delete(url, headers=self._merge_and_get_header(headers=headers), params=params, ssl=verify, auth=other_params.basicAuth) as response:
             return await self.process_response(response=response)
 
     async def process_response(self, response) -> MWebHttpResponse:
