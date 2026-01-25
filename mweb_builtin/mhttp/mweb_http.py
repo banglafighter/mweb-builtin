@@ -64,37 +64,33 @@ class MWebHttp:
     def _build_form(self, data: dict | None, file: dict | None):
         if not data and not file:
             return None
-
-        form = aiohttp.FormData()
-        if data:
-            for key, value in data.items():
-                form.add_field(key, str(value))
-
         if file:
-            for key, file_obj in file.items():
-                if isinstance(file_obj, str) and os.path.exists(file_obj):
+            form = aiohttp.FormData()
+            for k, v in (data or {}).items():
+                form.add_field(k, str(v))
+
+            for key, obj in file.items():
+                if isinstance(obj, str) and os.path.exists(obj):
                     form.add_field(
                         key,
-                        open(file_obj, "rb"),
-                        filename=os.path.basename(file_obj),
+                        open(obj, "rb"),
+                        filename=os.path.basename(obj)
                     )
                 else:
-                    form.add_field(key, file_obj)
-
-        return form
+                    form.add_field(key, obj)
+            return form
+        return data
 
     def set_base(self, url) -> "MWebHttp":
         self.baseUrl = url
         return self
 
-    def _merge_and_get_header(self, headers: dict = None):
-        if not headers:
-            headers = {}
-
-        if self.headers:
-            headers.update(self.headers)
-
-        return headers
+    def _merge_and_get_header(self, headers: dict | None) -> dict:
+        merged = {}
+        if headers:
+            merged.update(headers)
+        merged.update(self.headers)
+        return merged
 
     async def get(self, url: str, params: dict = None, verify: bool = True, headers: dict = None, other_params: MWebHttpParams = None) -> MWebHttpResponse:
         url = self._get_url(url)
@@ -165,6 +161,10 @@ class MWebHttp:
 
     def add_bearer_token(self, token) -> "MWebHttp":
         self.add_header("Authorization", f"Bearer {token}")
+        return self
+
+    def add_basic_token(self, token) -> "MWebHttp":
+        self.add_header("Authorization", f"Basic {token}")
         return self
 
     def add_content_type(self, content_type) -> "MWebHttp":
