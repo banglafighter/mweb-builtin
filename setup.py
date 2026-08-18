@@ -15,6 +15,7 @@ def get_dependencies():
         "redis==6.4.0",
         "aiohttp==3.13.2",
         "weasyprint==69.0",
+        "qrcode[pil]==8.2"
     ]
 
     if env and env == "code":
