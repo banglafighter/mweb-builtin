@@ -14,6 +14,7 @@ def get_dependencies():
         "APScheduler==3.11.0",
         "redis==6.4.0",
         "aiohttp==3.13.2",
+        "weasyprint==69.0",
     ]
 
     if env and env == "code":
