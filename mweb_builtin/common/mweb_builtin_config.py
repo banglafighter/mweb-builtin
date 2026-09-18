@@ -2,7 +2,7 @@ class MWebBuiltinConfig:
 
     # MWeb Scheduler Configuration
     ENABLE_SCHEDULER: bool = False
-    SCHEDULER_STORAGE: str = "sqlalchemy"
+    SCHEDULER_STORAGE: str = "sqlalchemy" # memory | sqlalchemy
     SCHEDULER_STORAGE_CONNECTION_URI: str = "sqlite:///mweb_scheduler.sqlite3"  # SQLAlchemy or Radis Connection URL
 
     SCHEDULER_THREAD_POOL_SIZE: int = 9
