@@ -13,6 +13,10 @@ class MWebBuiltinModule(MWebModule):
     async def initialize(self, mweb_app: MWebBase, config: MWebConfig, hook: MWebHook, system_config: MWebSystemConfig, **kwargs):
         MWebUtil.copy_config_property(source=config, destination=MWebBuiltinConfig)
 
+        if MWebBuiltinConfig.ENABLE_SCHEDULER:
+            from .scheduler.mweb_scheduler import mweb_scheduler
+            mweb_scheduler.initialize(mweb_app, enable=True)
+
     def register_model(self, mweb_orm) -> list:
         pass
 
