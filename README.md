@@ -44,3 +44,17 @@ For guidance on setting up a development environment and how to make a contribut
 * **Project GitHub Link :** [https://github.com/banglafighter/mweb](https://github.com/banglafighter/mweb)
 * **The Python Package Index Link :** [https://pypi.org/project/mweb](https://pypi.org/project/mweb)
 * **Documentation :** [https://mweb.banglafighter.org](https://mweb.banglafighter.org)
+
+
+## Install Playwright PDF Library
+```bash
+# Windows / macOS / Other Linux
+python -m playwright install --only-shell chromium
+
+# Ubuntu / Debian
+python -m playwright install --with-deps --only-shell chromium
+
+# Verify Installation
+python -m playwright --version
+python -m playwright install --list
+```

@@ -14,7 +14,7 @@ def get_dependencies():
         "APScheduler==3.11.0",
         "redis==6.4.0",
         "aiohttp==3.13.2",
-        "weasyprint==69.0",
+        "playwright==1.64.0",
         "qrcode[pil]==8.2"
     ]
 
