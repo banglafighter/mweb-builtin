@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import re
 import sys
@@ -294,7 +293,7 @@ class HTMLToPDF:
         if base_url is None:
             await page.set_content(
                 html_text,
-                wait_until="load",
+                wait_until="domcontentloaded",
                 timeout=timeout,
             )
 
@@ -313,7 +312,7 @@ class HTMLToPDF:
 
             await page.set_content(
                 content,
-                wait_until="load",
+                wait_until="domcontentloaded",
                 timeout=timeout,
             )
 
@@ -339,7 +338,7 @@ class HTMLToPDF:
         try:
             await page.goto(
                 temporary_file.as_uri(),
-                wait_until="load",
+                wait_until="domcontentloaded",
                 timeout=timeout,
             )
 
