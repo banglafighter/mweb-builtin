@@ -395,6 +395,29 @@ class HTMLToPDF:
                             timeout=timeout,
                         )
 
+                    # Wait for URL images before generating the PDF.
+                    await asyncio.wait_for(
+                        page.evaluate("""async () => {
+                            const images = Array.from(document.images);
+
+                            await Promise.all(images.map(image => {
+                                image.loading = "eager";
+
+                                if (image.complete) {
+                                    return Promise.resolve();
+                                }
+
+                                return new Promise(resolve => {
+                                    image.addEventListener("load", resolve, { once: true });
+                                    image.addEventListener("error", resolve, { once: true });
+                                });
+                            }));
+
+                            return images.filter(image => !image.naturalWidth).map(image => image.src);
+                        }"""),
+                        timeout=timeout / 1000,
+                    )
+
                     await asyncio.wait_for(
                         page.evaluate("document.fonts.ready"),
                         timeout=timeout / 1000,
