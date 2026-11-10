@@ -395,28 +395,45 @@ class HTMLToPDF:
                             timeout=timeout,
                         )
 
-                    # Wait for URL images before generating the PDF.
-                    await asyncio.wait_for(
+                    # Wait briefly for images without blocking PDF generation indefinitely.
+                    failed_images = await asyncio.wait_for(
                         page.evaluate("""async () => {
                             const images = Array.from(document.images);
 
                             await Promise.all(images.map(image => {
-                                image.loading = "eager";
-
-                                if (image.complete) {
+                                if (image.complete && image.naturalWidth > 0) {
                                     return Promise.resolve();
                                 }
 
                                 return new Promise(resolve => {
-                                    image.addEventListener("load", resolve, { once: true });
-                                    image.addEventListener("error", resolve, { once: true });
+                                    let finished = false;
+
+                                    const finish = () => {
+                                        if (finished) return;
+                                        finished = true;
+                                        image.removeEventListener("load", finish);
+                                        image.removeEventListener("error", finish);
+                                        resolve();
+                                    };
+
+                                    image.addEventListener("load", finish, { once: true });
+                                    image.addEventListener("error", finish, { once: true });
+                                    image.loading = "eager";
+
+                                    if (image.complete) finish();
+                                    setTimeout(finish, 10000);
                                 });
                             }));
 
-                            return images.filter(image => !image.naturalWidth).map(image => image.src);
+                            return images
+                                .filter(image => !image.complete || image.naturalWidth === 0)
+                                .map(image => image.currentSrc || image.src);
                         }"""),
-                        timeout=timeout / 1000,
+                        timeout=min(timeout / 1000, 15),
                     )
+
+                    if failed_images:
+                        Console.log(f"PDF images not loaded: {failed_images}")
 
                     await asyncio.wait_for(
                         page.evaluate("document.fonts.ready"),
