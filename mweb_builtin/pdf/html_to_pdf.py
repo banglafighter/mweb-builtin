@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class HTMLToPDF:
 
     IDLE_TIMEOUT = 60
-    MAX_CONCURRENT = 4
+    MAX_CONCURRENT = 8
 
     _playwright: "Playwright | None" = None
     _browser: "Browser | None" = None
