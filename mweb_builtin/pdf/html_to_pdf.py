@@ -6,6 +6,7 @@ import tempfile
 import platform
 from html import escape
 from pathlib import Path
+from time import perf_counter
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
@@ -381,6 +382,8 @@ class HTMLToPDF:
 
                     page = await context.new_page()
 
+                    start = perf_counter()
+
                     temporary_file = await cls._load_content(
                         page=page,
                         html_text=html_text,
@@ -389,6 +392,8 @@ class HTMLToPDF:
                         timeout=timeout,
                     )
 
+                    Console.log(f"HTML loaded: {perf_counter() - start:.2f}s")
+
                     if wait_for:
                         await page.locator(wait_for).wait_for(
                             state="visible",
@@ -396,6 +401,7 @@ class HTMLToPDF:
                         )
 
                     # Wait briefly for images without blocking PDF generation indefinitely.
+                    start = perf_counter()
                     failed_images = await asyncio.wait_for(
                         page.evaluate("""async () => {
                             const images = Array.from(document.images);
@@ -435,10 +441,30 @@ class HTMLToPDF:
                     if failed_images:
                         Console.log(f"PDF images not loaded: {failed_images}")
 
+                    Console.log(f"Images loaded: {perf_counter() - start:.2f}s")
+                    start = perf_counter()
+
                     await asyncio.wait_for(
                         page.evaluate("document.fonts.ready"),
                         timeout=timeout / 1000,
                     )
+
+                    Console.log(f"Fonts loaded: {perf_counter() - start:.2f}s")
+
+                    image_details = await asyncio.wait_for(
+                        page.evaluate("""() => Array.from(document.images).map(image => ({
+                            src: image.currentSrc,
+                            loaded: image.complete && image.naturalWidth > 0,
+                            width: image.naturalWidth,
+                            height: image.naturalHeight
+                        }))"""),
+                        timeout=min(timeout / 1000, 15),
+                    )
+
+                    Console.log(f"Image details: {image_details}")
+
+                    start = perf_counter()
+                    Console.log("PDF rendering started")
 
                     pdf_bytes = await asyncio.wait_for(
                         page.pdf(
@@ -455,6 +481,9 @@ class HTMLToPDF:
                         ),
                         timeout=timeout / 1000,
                     )
+
+                    Console.log(f"PDF rendered: {perf_counter() - start:.2f}s")
+                    Console.log(f"PDF size: {len(pdf_bytes) / 1024 / 1024:.2f} MB")
 
                     return pdf_bytes
 
