@@ -463,6 +463,15 @@ class HTMLToPDF:
 
                     Console.log(f"Image details: {image_details}")
 
+                    # Temporary diagnostic test: hide images while preserving layout.
+                    await page.evaluate("""
+                        () => {
+                            document.querySelectorAll('img').forEach(image => {
+                                image.style.visibility = "hidden";
+                            });
+                        }
+                    """)
+
                     start = perf_counter()
                     Console.log("PDF rendering started")
 
