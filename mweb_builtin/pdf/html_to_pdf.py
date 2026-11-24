@@ -622,7 +622,7 @@ class HTMLToPDF:
         )
 
     @classmethod
-    async def from_text(cls, html_text: str, file_path: str | Path | None = None, filename: str | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = False):
+    async def from_text(cls, html_text: str, file_path: str | Path | None = None, filename: str | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = True):
         if not html_text:
             raise MWebCRUDException(
                 message="Invalid pdf content"
@@ -646,7 +646,7 @@ class HTMLToPDF:
         )
 
     @classmethod
-    async def from_url(cls, url: str | Path, file_path: str | Path | None = None, filename: str | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = False):
+    async def from_url(cls, url: str | Path, file_path: str | Path | None = None, filename: str | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = True):
         pdf_bytes = await cls._generate(
             url=url,
             page_size=page_size,
