@@ -560,17 +560,16 @@ class HTMLToPDF:
 
                     Console.log(f"Fonts loaded: {perf_counter() - start:.2f}s")
 
-                    image_details = await asyncio.wait_for(
-                        page.evaluate("""() => Array.from(document.images).map(image => ({
-                            src: image.currentSrc,
-                            loaded: image.complete && image.naturalWidth > 0,
-                            width: image.naturalWidth,
-                            height: image.naturalHeight
-                        }))"""),
+                    final_failed_images = await asyncio.wait_for(
+                        page.evaluate("""() => Array.from(document.images)
+                            .filter(image => !image.complete || image.naturalWidth === 0)
+                            .map(image => image.currentSrc || image.src)"""),
                         timeout=min(timeout / 1000, 15),
                     )
 
-                    Console.log(f"Image details: {image_details}")
+                    final_failed_images = list(dict.fromkeys(src for src in final_failed_images if src not in failed_images))
+                    if final_failed_images:
+                        Console.log(f"PDF images not loaded after optimization: {final_failed_images}")
 
                     start = perf_counter()
                     Console.log("PDF rendering started")
