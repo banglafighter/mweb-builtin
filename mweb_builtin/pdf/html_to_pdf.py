@@ -353,7 +353,111 @@ class HTMLToPDF:
             raise
 
     @classmethod
-    async def _generate(cls, html_text: str | None = None, url: str | Path | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000):
+    def _optimize_local_images(cls, sources: list[str]):
+        from PIL import Image, ImageOps
+
+        replacements = {}
+
+        for url in sources:
+            temporary_path = None
+
+            try:
+                source = cls._get_local_path(url)
+                if not source.is_file():
+                    continue
+
+                source_stat = source.stat()
+                cache_dir = source.parent / ".pdf-image-cache"
+                target = cache_dir / f"{source.name}.{source_stat.st_mtime_ns}.{source_stat.st_size}.400x500.png"
+
+                if not target.is_file():
+                    with Image.open(source) as image:
+                        if image.format not in ("JPEG", "PNG", "WEBP", "BMP"):
+                            continue
+
+                        image = ImageOps.exif_transpose(image)
+                        if image.width <= 400 and image.height <= 500:
+                            continue
+
+                        image.thumbnail((400, 500), Image.Resampling.LANCZOS)
+                        has_alpha = "A" in image.getbands() or "transparency" in image.info
+                        image = image.convert("RGBA" if has_alpha else "RGB")
+
+                        cache_dir.mkdir(exist_ok=True)
+                        fd, name = tempfile.mkstemp(prefix=".pdf-image-", dir=cache_dir)
+                        temporary_path = Path(name)
+
+                        with os.fdopen(fd, "wb") as file:
+                            image.save(file, format="PNG")
+
+                        os.replace(temporary_path, target)
+
+                replacements[url] = target.resolve().as_uri()
+
+            except Exception as exc:
+                Console.log(f"PDF image optimization failed: {url} - {exc}")
+
+            finally:
+                if temporary_path is not None:
+                    temporary_path.unlink(missing_ok=True)
+
+        return replacements
+
+    @classmethod
+    async def _optimize_page_images(cls, page, timeout: int):
+        sources = await asyncio.wait_for(
+            page.evaluate("""() => Array.from(new Set(
+                Array.from(document.images)
+                    .filter(image => image.complete && image.naturalWidth > 0)
+                    .filter(image => image.naturalWidth > 400 || image.naturalHeight > 500)
+                    .filter(image => !image.hasAttribute("srcset") && !image.closest("picture"))
+                    .map(image => image.currentSrc || image.src)
+                    .filter(src => src.startsWith("file://"))
+            ))"""),
+            timeout=timeout / 1000,
+        )
+
+        if not sources:
+            return 0
+
+        replacements = await asyncio.to_thread(
+            cls._optimize_local_images,
+            sources,
+        )
+
+        if not replacements:
+            return 0
+
+        return await asyncio.wait_for(
+            page.evaluate("""async (replacements) => {
+                let optimized = 0;
+
+                await Promise.all(Array.from(document.images).map(async image => {
+                    const source = image.currentSrc || image.src;
+                    const target = replacements[source];
+
+                    if (!target || image.hasAttribute("srcset") || image.closest("picture")) return;
+
+                    const originalSrc = image.getAttribute("src");
+                    image.src = target;
+
+                    try {
+                        await image.decode();
+                        optimized++;
+                    } catch (error) {
+                        if (originalSrc === null) image.removeAttribute("src");
+                        else image.setAttribute("src", originalSrc);
+                        try { await image.decode(); } catch (error) {}
+                    }
+                }));
+
+                return optimized;
+            }""", replacements),
+            timeout=timeout / 1000,
+        )
+
+    @classmethod
+    async def _generate(cls, html_text: str | None = None, url: str | Path | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = False):
         if html_text is None and url is None:
             raise MWebCRUDException(
                 message="Invalid pdf content"
@@ -442,6 +546,11 @@ class HTMLToPDF:
                         Console.log(f"PDF images not loaded: {failed_images}")
 
                     Console.log(f"Images loaded: {perf_counter() - start:.2f}s")
+
+                    if optimize_images:
+                        start = perf_counter()
+                        optimized_count = await cls._optimize_page_images(page, timeout)
+                        Console.log(f"Images optimized: {optimized_count} in {perf_counter() - start:.2f}s")
                     start = perf_counter()
 
                     await asyncio.wait_for(
@@ -462,15 +571,6 @@ class HTMLToPDF:
                     )
 
                     Console.log(f"Image details: {image_details}")
-
-                    # Temporary diagnostic test: hide images while preserving layout.
-                    await page.evaluate("""
-                        () => {
-                            document.querySelectorAll('img').forEach(image => {
-                                image.style.visibility = "hidden";
-                            });
-                        }
-                    """)
 
                     start = perf_counter()
                     Console.log("PDF rendering started")
@@ -523,7 +623,7 @@ class HTMLToPDF:
         )
 
     @classmethod
-    async def from_text(cls, html_text: str, file_path: str | Path | None = None, filename: str | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000):
+    async def from_text(cls, html_text: str, file_path: str | Path | None = None, filename: str | None = None, base_url: str | Path | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = False):
         if not html_text:
             raise MWebCRUDException(
                 message="Invalid pdf content"
@@ -537,6 +637,7 @@ class HTMLToPDF:
             margin=margin,
             wait_for=wait_for,
             timeout=timeout,
+            optimize_images=optimize_images,
         )
 
         return await cls._response(
@@ -546,7 +647,7 @@ class HTMLToPDF:
         )
 
     @classmethod
-    async def from_url(cls, url: str | Path, file_path: str | Path | None = None, filename: str | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000):
+    async def from_url(cls, url: str | Path, file_path: str | Path | None = None, filename: str | None = None, page_size: str = "A4", landscape: bool = False, margin: str = "0", wait_for: str | None = None, timeout: int = 60000, optimize_images: bool = False):
         pdf_bytes = await cls._generate(
             url=url,
             page_size=page_size,
@@ -554,6 +655,7 @@ class HTMLToPDF:
             margin=margin,
             wait_for=wait_for,
             timeout=timeout,
+            optimize_images=optimize_images,
         )
 
         return await cls._response(
